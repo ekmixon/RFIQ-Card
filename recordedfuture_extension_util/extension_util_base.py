@@ -27,13 +27,13 @@ class MissingCredentialsException(ExtensionException):
 
 class UnsupportedTypeException(ExtensionException):
     def __init__(self, arg):
-        self.msg = "Type {} not supported for extension".format(arg)
+        self.msg = f"Type {arg} not supported for extension"
         self.message = self.msg
 
 
 class NoResultException(ExtensionException):
     def __init__(self, arg, link=None):
-        self.msg = "No results found for {}".format(arg)
+        self.msg = f"No results found for {arg}"
         self.link = link
         self.message = self.msg
 

@@ -19,7 +19,7 @@ TIMEOUT   = 90
 DATASTORE = {}
 
 ########################################################################################################################
-def groom_dfidb (data):
+def groom_dfidb(data):
     """
     data is a list.
     """
@@ -32,11 +32,7 @@ def groom_dfidb (data):
     ]
 
     for d in data:
-        gd = {}
-
-        for k, v in d.items():
-            if k in ok_keys:
-                gd[k] = v
+        gd = {k: v for k, v in d.items() if k in ok_keys}
 
         groomed.append(gd)
 
@@ -44,7 +40,7 @@ def groom_dfidb (data):
 
 
 ########################################################################################################################
-def groom_iocdb (data):
+def groom_iocdb(data):
     """
     data is a list.
     """
@@ -56,11 +52,7 @@ def groom_iocdb (data):
     ]
 
     for d in data:
-        gd = {}
-
-        for k, v in d.items():
-            if k in ok_keys:
-                gd[k] = v
+        gd = {k: v for k, v in d.items() if k in ok_keys}
 
         groomed.append(gd)
 
@@ -68,7 +60,7 @@ def groom_iocdb (data):
 
 
 ########################################################################################################################
-def groom_repdb (data):
+def groom_repdb(data):
     """
     data is a list.
     """
@@ -80,11 +72,7 @@ def groom_repdb (data):
     ]
 
     for d in data:
-        gd = {}
-
-        for k, v in d.items():
-            if k in ok_keys:
-                gd[k] = v
+        gd = {k: v for k, v in d.items() if k in ok_keys}
 
         groomed.append(gd)
 
@@ -92,12 +80,11 @@ def groom_repdb (data):
 
 
 ########################################################################################################################
-def groom_lookup (data):
+def groom_lookup(data):
     """
     data is a dictionary.
     """
 
-    groomed = {}
     ok_keys = \
     [
         # IP keys
@@ -108,11 +95,7 @@ def groom_lookup (data):
         "registrant", "registrant_country", "registrar", "updated_on",
     ]
 
-    for k, v in data.items():
-        if k in ok_keys:
-            groomed[k] = v
-
-    return groomed
+    return {k: v for k, v in data.items() if k in ok_keys}
 
 
 ########################################################################################################################
@@ -128,7 +111,7 @@ def log (msg, minor=False):
 
 
 ########################################################################################################################
-def request (request_dict, auth_info):
+def request(request_dict, auth_info):
     """
     entry port for RecordedFuture Intel Card.
     """
@@ -139,7 +122,7 @@ def request (request_dict, auth_info):
     kind = request_dict["entity"]["type"]
     jobs = []
 
-    log("received kind=%s ioc=%s" % (kind, ioc))
+    log(f"received kind={kind} ioc={ioc}")
 
     # spin out jobs for handling domain name lookups.
     if kind == "InternetDomainName":
@@ -256,12 +239,11 @@ def request (request_dict, auth_info):
         # this prevents CPU hogging.
         time.sleep(.5)
 
-    # we only enter this if we didn't 'break' above.
     else:
         log("timeout reached, the following jobs failed to complete...")
         for job in jobs:
             if job.is_alive():
-                log("job never completed: %s" % job.getName())
+                log(f"job never completed: {job.getName()}")
             else:
                 job.join()
 
@@ -274,23 +256,23 @@ def request (request_dict, auth_info):
 
 
 ########################################################################################################################
-def worker (labs, groomer, endpoint, arguments):
+def worker(labs, groomer, endpoint, arguments):
     """
     Wrapper function for threaded spin-outs.
     """
 
     global DATASTORE
 
-    log("worker-started:%s(%s)" % (endpoint, arguments), minor=True)
+    log(f"worker-started:{endpoint}({arguments})", minor=True)
     DATASTORE[endpoint] = groomer(getattr(labs, endpoint)(*arguments))
-    log("worker-completed:%s(%s)" % (endpoint, arguments), minor=True)
+    log(f"worker-completed:{endpoint}({arguments})", minor=True)
 
 
 ########################################################################################################################
 if __name__ == "__main__":
 
     # real-deal.
-    if not "unit-test" in map(str.lower, sys.argv):
+    if "unit-test" not in map(str.lower, sys.argv):
         from recordedfuture_extension_util.extension_util import make_request
         print("response:", make_request(request))
         sys.exit(0)
@@ -301,8 +283,7 @@ if __name__ == "__main__":
         "apikey": open("api.key").read().strip()
     }
 
-        # dry-run.
-    print("unit testing mode with key: %s" % auth_info['apikey'])
+    print(f"unit testing mode with key: {auth_info['apikey']}")
 
     # Domain.
     request_dict = \

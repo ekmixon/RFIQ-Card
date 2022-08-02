@@ -73,7 +73,7 @@ class ConnectionPool(object):
                                          self.host, self.port)
 
 # This is taken from http://hg.python.org/cpython/file/7aaba721ebc0/Lib/socket.py#l252
-_blocking_errnos = set([errno.EAGAIN, errno.EWOULDBLOCK])
+_blocking_errnos = {errno.EAGAIN, errno.EWOULDBLOCK}
 
 
 class HTTPConnectionPool(ConnectionPool, RequestMethods):
@@ -187,10 +187,13 @@ class HTTPConnectionPool(ConnectionPool, RequestMethods):
         log.info("Starting new HTTP connection (%d): %s" %
                  (self.num_connections, self.host))
 
-        conn = self.ConnectionCls(host=self.host, port=self.port,
-                                  timeout=self.timeout.connect_timeout,
-                                  strict=self.strict, **self.conn_kw)
-        return conn
+        return self.ConnectionCls(
+            host=self.host,
+            port=self.port,
+            timeout=self.timeout.connect_timeout,
+            strict=self.strict,
+            **self.conn_kw
+        )
 
     def _get_conn(self, timeout=None):
         """
@@ -216,11 +219,9 @@ class HTTPConnectionPool(ConnectionPool, RequestMethods):
                 raise EmptyPoolError(self,
                                      "Pool reached maximum size and no more "
                                      "connections are allowed.")
-            pass  # Oh well, we'll create a new connection then
-
         # If this is a persistent connection, check if it got disconnected
         if conn and is_connection_dropped(conn):
-            log.info("Resetting dropped connection: %s" % self.host)
+            log.info(f"Resetting dropped connection: {self.host}")
             conn.close()
             if getattr(conn, 'auto_open', 1) == 0:
                 # This is a proxied connection that has been mutated by
@@ -252,9 +253,7 @@ class HTTPConnectionPool(ConnectionPool, RequestMethods):
             pass
         except Full:
             # This should never happen if self.block == True
-            log.warning(
-                "Connection pool is full, discarding connection: %s" %
-                self.host)
+            log.warning(f"Connection pool is full, discarding connection: {self.host}")
 
         # Connection never got put back into the pool, close it.
         if conn:
@@ -319,7 +318,9 @@ class HTTPConnectionPool(ConnectionPool, RequestMethods):
             # timeouts, check for a zero timeout before making the request.
             if read_timeout == 0:
                 raise ReadTimeoutError(
-                    self, url, "Read timed out. (read timeout=%s)" % read_timeout)
+                    self, url, f"Read timed out. (read timeout={read_timeout})"
+                )
+
             if read_timeout is Timeout.DEFAULT_TIMEOUT:
                 conn.sock.settimeout(socket.getdefaulttimeout())
             else:  # None or a value
@@ -333,16 +334,20 @@ class HTTPConnectionPool(ConnectionPool, RequestMethods):
                 httplib_response = conn.getresponse()
         except SocketTimeout:
             raise ReadTimeoutError(
-                self, url, "Read timed out. (read timeout=%s)" % read_timeout)
+                self, url, f"Read timed out. (read timeout={read_timeout})"
+            )
+
 
         except BaseSSLError as e:
             # Catch possible read timeouts thrown as SSL errors. If not the
             # case, rethrow the original. We need to do this because of:
             # http://bugs.python.org/issue10272
             if 'timed out' in str(e) or \
-               'did not complete (read)' in str(e):  # Python 2.6
+                   'did not complete (read)' in str(e):  # Python 2.6
                 raise ReadTimeoutError(
-                        self, url, "Read timed out. (read timeout=%s)" % read_timeout)
+                    self, url, f"Read timed out. (read timeout={read_timeout})"
+                )
+
 
             raise
 
@@ -351,7 +356,9 @@ class HTTPConnectionPool(ConnectionPool, RequestMethods):
             # have to specifically catch it and throw the timeout error
             if e.errno in _blocking_errnos:
                 raise ReadTimeoutError(
-                    self, url, "Read timed out. (read timeout=%s)" % read_timeout)
+                    self, url, f"Read timed out. (read timeout={read_timeout})"
+                )
+
 
             raise
 
@@ -371,8 +378,7 @@ class HTTPConnectionPool(ConnectionPool, RequestMethods):
 
         try:
             while True:
-                conn = old_pool.get(block=False)
-                if conn:
+                if conn := old_pool.get(block=False):
                     conn.close()
 
         except Empty:
@@ -578,9 +584,7 @@ class HTTPConnectionPool(ConnectionPool, RequestMethods):
                                 timeout=timeout, pool_timeout=pool_timeout,
                                 release_conn=release_conn, **response_kw)
 
-        # Handle redirect?
-        redirect_location = redirect and response.get_redirect_location()
-        if redirect_location:
+        if redirect_location := redirect and response.get_redirect_location():
             if response.status == 303:
                 method = 'GET'
 
@@ -591,7 +595,7 @@ class HTTPConnectionPool(ConnectionPool, RequestMethods):
                     raise
                 return response
 
-            log.info("Redirecting %s -> %s" % (url, redirect_location))
+            log.info(f"Redirecting {url} -> {redirect_location}")
             return self.urlopen(method, redirect_location, body, headers,
                     retries=retries, redirect=redirect,
                     assert_same_host=assert_same_host,
@@ -602,7 +606,7 @@ class HTTPConnectionPool(ConnectionPool, RequestMethods):
         if retries.is_forced_retry(method, status_code=response.status):
             retries = retries.increment(method, url, response=response, _pool=self)
             retries.sleep()
-            log.info("Forced retry: %s" % url)
+            log.info(f"Forced retry: {url}")
             return self.urlopen(method, url, body, headers,
                     retries=retries, redirect=redirect,
                     assert_same_host=assert_same_host,

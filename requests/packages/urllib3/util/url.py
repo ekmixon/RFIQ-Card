@@ -29,16 +29,14 @@ class Url(namedtuple('Url', url_attrs)):
         uri = self.path or '/'
 
         if self.query is not None:
-            uri += '?' + self.query
+            uri += f'?{self.query}'
 
         return uri
 
     @property
     def netloc(self):
         """Network location including host and port"""
-        if self.port:
-            return '%s:%d' % (self.host, self.port)
-        return self.host
+        return '%s:%d' % (self.host, self.port) if self.port else self.host
 
 
 def split_first(s, delims):
@@ -104,7 +102,6 @@ def parse_url(url):
     auth = None
     host = None
     port = None
-    path = None
     fragment = None
     query = None
 
@@ -116,10 +113,7 @@ def parse_url(url):
     # (http://tools.ietf.org/html/rfc3986#section-3.2)
     url, path_, delim = split_first(url, ['/', '?', '#'])
 
-    if delim:
-        # Reassemble the path
-        path = delim + path_
-
+    path = delim + path_ if delim else None
     # Auth
     if '@' in url:
         # Last '@' denotes end of auth part
